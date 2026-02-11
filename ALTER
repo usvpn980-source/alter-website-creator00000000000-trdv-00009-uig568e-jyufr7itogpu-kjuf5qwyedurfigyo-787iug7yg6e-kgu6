@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alter Shop - Payment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 300px;
+        }
+        h1 { margin-bottom: 1rem; color: #333; }
+        .product-info { margin-bottom: 2rem; font-size: 1.1rem; }
+        #container { width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Alter Shop</h1>
+    <div class="product-info">
+        <p>Jewelry / Pencil Order</p>
+        <p><strong>Total: ₹99.00</strong></p>
+    </div>
+    
+    <div id="container"></div>
+</div>
+
+<script>
+/**
+ * Google Pay API कॉन्फ़िगरेशन
+ */
+const baseRequest = {
+  apiVersion: 2,
+  apiVersionMinor: 0
+};
+
+const allowedCardNetworks = ["AMEX", "DISCOVER", "INTERAC", "JCB", "MASTERCARD", "VISA"];
+const allowedCardAuthMethods = ["PAN_ONLY", "CRYPTOGRAM_3DS"];
+
+const tokenizationSpecification = {
+  type: 'PAYMENT_GATEWAY',
+  parameters: {
+    'gateway': 'example', // नोट: असली वेबसाइट पर अपना गेटवे (जैसे Stripe/Razorpay) यहाँ डालें
+    'gatewayMerchantId': 'exampleGatewayMerchantId'
+  }
+};
+
+const baseCardPaymentMethod = {
+  type: 'CARD',
+  parameters: {
+    allowedAuthMethods: allowedCardAuthMethods,
+    allowedCardNetworks: allowedCardNetworks
+  }
+};
+
+const cardPaymentMethod = Object.assign(
+  {},
+  baseCardPaymentMethod,
+  {
+    tokenizationSpecification: tokenizationSpecification
+  }
+);
+
+let paymentsClient = null;
+
+/**
+ * Google Pay क्लाइंट को इनिशियलाइज़ करता है
+ */
+function getGooglePaymentsClient() {
+  if (paymentsClient === null) {
+    paymentsClient = new google.payments.api.PaymentsClient({environment: 'TEST'}); // लाइव जाने के लिए 'TEST' को 'PRODUCTION' करें
+  }
+  return paymentsClient;
+}
+
+/**
+ * Google Pay बटन लोड होने पर कॉल होता है
+ */
+function onGooglePayLoaded() {
+  const paymentsClient = getGooglePaymentsClient();
+  paymentsClient.isReadyToPay(getGoogleIsReadyToPayRequest())
+    .then(function(response) {
+      if (response.result) {
+        addGooglePayButton();
+      }
+    })
+    .catch(function(err) {
+      console.error(err);
+    });
+}
+
+function getGoogleIsReadyToPayRequest() {
+  return Object.assign(
+    {},
+    baseRequest,
+    {
+      allowedPaymentMethods: [baseCardPaymentMethod]
+    }
+  );
+}
+
+/**
+ * पेमेंट डेटा रिक्वेस्ट (कीमत, करेंसी, और मर्चेंट ID यहाँ सेट करें)
+ */
+function getGooglePaymentDataRequest() {
+  const paymentDataRequest = Object.assign({}, baseRequest);
+  paymentDataRequest.allowedPaymentMethods = [cardPaymentMethod];
+  paymentDataRequest.transactionInfo = {
+    totalPriceStatus: 'FINAL',
+    totalPrice: '10.00', // यहाँ अपनी प्रोडक्ट की कीमत सेट करें
+    currencyCode: 'INR',
+    countryCode: 'IN'
+  };
+
+  paymentDataRequest.merchantInfo = {
+    // *** यहाँ अपनी असली Merchant ID डालें ***
+    merchantId: 'BCR2DN5TR33OF5QS', 
+    merchantName: 'Alter Shop'
+  };
+
+  return paymentDataRequest;
+}
+
+function addGooglePayButton() {
+  const paymentsClient = getGooglePaymentsClient();
+  const button = paymentsClient.createButton({
+    onClick: onGooglePaymentButtonClicked,
+    allowedPaymentMethods: [baseCardPaymentMethod] 
+  });
+  document.getElementById('container').appendChild(button);
+}
+
+function onGooglePaymentButtonClicked() {
+  const paymentDataRequest = getGooglePaymentDataRequest();
+  paymentDataRequest.transactionInfo = {
+    totalPriceStatus: 'FINAL',
+    totalPrice: '10.00',
+    currencyCode: 'INR',
+    countryCode: 'IN'
+  };
+
+  const paymentsClient = getGooglePaymentsClient();
+  paymentsClient.loadPaymentData(paymentDataRequest)
+    .then(function(paymentData) {
+      // यहाँ पेमेंट सफल होने पर क्या करना है वो कोड आएगा
+      processPayment(paymentData);
+    })
+    .catch(function(err) {
+      console.error(err);
+    });
+}
+
+function processPayment(paymentData) {
+    console.log(paymentData);
+    alert("Payment Successful! (Test Mode)");
+}
+</script>
+
+<script async
+  src="https://pay.google.com/gp/p/js/pay.js"
+  onload="onGooglePayLoaded()">
+</script>
+
+</body>
+</html>
